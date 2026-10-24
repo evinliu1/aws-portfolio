@@ -22,7 +22,7 @@ export default function App() {
     <div className="grid min-h-screen grid-cols-[3fr_2fr]">
       <main ref={mainRef} className="flex flex-col gap-18 px-16 pb-24 pt-18 *:max-w-150">
         <div className="font-display text-xl font-bold">Evin Liu</div>
-        <Hero />
+        <Hero onDownloadResume={session.downloadResume} />
         <About />
         <Skills />
       </main>

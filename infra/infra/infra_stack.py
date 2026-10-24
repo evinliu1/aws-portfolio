@@ -13,6 +13,7 @@ from aws_cdk import (
     aws_logs as logs,
     aws_s3 as s3,
     aws_s3_deployment as s3deploy,
+    aws_sns as sns,
 )
 from constructs import Construct
 
@@ -41,6 +42,35 @@ class InfraStack(Stack):
         events_fn = self._python_function("Events", "events", table)
         table.grant_read_write_data(events_fn)  # reads the session before writing an event
 
+        # Private: the only way in is a short-lived link signed by the resume function.
+        # The PDF itself is uploaded by hand, so it never has to live in the public repo.
+        resume_bucket = s3.Bucket(
+            self,
+            "ResumeBucket",
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            enforce_ssl=True,
+            removal_policy=RemovalPolicy.DESTROY,
+            auto_delete_objects=True,
+        )
+        # The email subscription is added with the CLI, so the address stays out of the repo.
+        downloads_topic = sns.Topic(
+            self, "ResumeDownloadsTopic", display_name="Portfolio resume downloads"
+        )
+
+        resume_fn = self._python_function(
+            "Resume",
+            "resume",
+            table,
+            environment={
+                "RESUME_BUCKET": resume_bucket.bucket_name,
+                "TOPIC_ARN": downloads_topic.topic_arn,
+            },
+        )
+        resume_bucket.grant_read(resume_fn, "resume.pdf")  # presigned links use these permissions
+        table.grant_write_data(resume_fn)
+        downloads_topic.grant_publish(resume_fn)
+
         api = apigw.RestApi(
             self,
             "PortfolioApi",
@@ -56,6 +86,8 @@ class InfraStack(Stack):
         visits.add_method("POST", apigw.LambdaIntegration(visits_fn))
         events = api_root.add_resource("events")
         events.add_method("POST", apigw.LambdaIntegration(events_fn))
+        resume = api_root.add_resource("resume")
+        resume.add_method("POST", apigw.LambdaIntegration(resume_fn))
 
         api_origin_policy = cloudfront.OriginRequestPolicy(
             self,
@@ -111,8 +143,16 @@ class InfraStack(Stack):
 
         CfnOutput(self, "SiteUrl", value=f"https://{distribution.distribution_domain_name}")
         CfnOutput(self, "TableName", value=table.table_name)
+        CfnOutput(self, "ResumeBucketName", value=resume_bucket.bucket_name)
+        CfnOutput(self, "ResumeTopicArn", value=downloads_topic.topic_arn)
 
-    def _python_function(self, name: str, source_dir: str, table: dynamodb.Table) -> lambda_.Function:
+    def _python_function(
+        self,
+        name: str,
+        source_dir: str,
+        table: dynamodb.Table,
+        environment: dict[str, str] | None = None,
+    ) -> lambda_.Function:
         """A Lambda running one handler from backend/src, with the settings every API function shares."""
         return lambda_.Function(
             self,
@@ -123,7 +163,7 @@ class InfraStack(Stack):
             code=lambda_.Code.from_asset(str(BACKEND_SRC / source_dir), exclude=["__pycache__"]),
             memory_size=256,
             timeout=Duration.seconds(5),
-            environment={"TABLE_NAME": table.table_name},
+            environment={"TABLE_NAME": table.table_name, **(environment or {})},
             log_group=logs.LogGroup(
                 self,
                 f"{name}Logs",

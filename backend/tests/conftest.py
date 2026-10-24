@@ -6,6 +6,7 @@ import pytest
 from moto import mock_aws
 
 TABLE_NAME = "test-visits"
+RESUME_BUCKET = "test-resume"
 
 
 @pytest.fixture
@@ -57,3 +58,17 @@ def visits_handler(table):
 @pytest.fixture
 def events_handler(table):
     return _fresh_import("events.handler")
+
+
+@pytest.fixture
+def resume_topic_arn(table):
+    """A moto SNS topic standing in for the download-notification topic."""
+    return boto3.client("sns").create_topic(Name="test-resume-downloads")["TopicArn"]
+
+
+@pytest.fixture
+def resume_handler(table, resume_topic_arn, monkeypatch):
+    boto3.client("s3").create_bucket(Bucket=RESUME_BUCKET)
+    monkeypatch.setenv("RESUME_BUCKET", RESUME_BUCKET)
+    monkeypatch.setenv("TOPIC_ARN", resume_topic_arn)
+    return _fresh_import("resume.handler")

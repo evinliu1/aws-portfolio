@@ -1,6 +1,7 @@
 import { primaryButton, secondaryButton } from "./buttons";
+import ResumeButton from "./ResumeButton";
 
-export default function Hero() {
+export default function Hero({ onDownloadResume }) {
   return (
     <header className="flex flex-col gap-6">
       <h1 className="font-display text-[76px] font-bold leading-[0.98] tracking-[-0.03em]">
@@ -11,10 +12,9 @@ export default function Hero() {
         you read it.
       </p>
       <div className="flex flex-wrap gap-3.5">
-        {/* Wired to a Lambda function in the backend phase */}
-        <button type="button" className={primaryButton}>
+        <ResumeButton onDownload={onDownloadResume} className={primaryButton}>
           Download resume
-        </button>
+        </ResumeButton>
         <a href="mailto:you@example.com" className={secondaryButton}>
           Get in touch
         </a>

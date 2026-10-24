@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { primaryButton, secondaryButton } from "./buttons";
+import ResumeButton from "./ResumeButton";
 
 export default function MobileNotice({ session }) {
   const [copied, setCopied] = useState(false);
@@ -39,9 +40,12 @@ export default function MobileNotice({ session }) {
           <button type="button" className={primaryButton} onClick={copyLink}>
             {copied ? "Link copied" : "Copy link for later"}
           </button>
-          <button type="button" className={secondaryButton}>
+          <ResumeButton
+            onDownload={session.downloadResume}
+            className={secondaryButton}
+          >
             Download my resume
-          </button>
+          </ResumeButton>
         </div>
       </div>
 

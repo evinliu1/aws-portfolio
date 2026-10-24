@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { sendEvent, startVisit } from "../api";
+import { requestResume, sendEvent, startVisit } from "../api";
 import { secondsSince } from "../lib/time";
 
 const PAGE_OPENED_AT = Date.now();
@@ -32,6 +32,18 @@ function describeFirstHeartbeat(result) {
 
 function describeSectionView(label, result) {
   return `You reached the ${label} section. ${describeEventSave(result)}`;
+}
+
+function describeResumeDownload(result) {
+  const minutes = result.expiresInSeconds / 60;
+  const link = `a Lambda function signed a private S3 link that works for ${minutes} minutes`;
+  if (!result.firstDownload) {
+    return `You downloaded my resume again, so ${link}. I only get notified once per visit, so my phone stayed quiet. ${describeTiming(result)}`;
+  }
+  if (!result.notified) {
+    return `You downloaded my resume, so ${link}. SNS couldn't send my notification this time, so my phone stayed quiet. ${describeTiming(result)}`;
+  }
+  return `You downloaded my resume, so ${link} and recorded the download on your visit. SNS emailed me about it, so my phone just buzzed. ${describeTiming(result)}`;
 }
 
 export default function useBackendSession() {
@@ -93,6 +105,14 @@ export default function useBackendSession() {
     [record]
   );
 
+  // Throws if the API can't be reached, so the button can show that the download failed.
+  const downloadResume = useCallback(async () => {
+    const result = await requestResume(sessionId);
+    window.location.assign(result.url); // The link says "attachment", so the page stays put.
+    setLastRoundTripMs(result.roundTripMs);
+    if (sessionId) addEvent(describeResumeDownload(result));
+  }, [sessionId, addEvent]);
+
   useEffect(() => {
     if (requested.current) return;
     requested.current = true;
@@ -120,5 +140,6 @@ export default function useBackendSession() {
     arrivedAt: PAGE_OPENED_AT,
     retry: connect,
     viewSection,
+    downloadResume,
   };
 }

@@ -21,3 +21,8 @@ export function startVisit() {
 export function sendEvent(sessionId, event) {
   return postJson("/api/events", { sessionId, ...event });
 }
+
+// sessionId is optional: the resume still downloads if the visit never registered.
+export function requestResume(sessionId) {
+  return postJson("/api/resume", sessionId ? { sessionId } : undefined);
+}
