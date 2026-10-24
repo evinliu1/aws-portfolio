@@ -30,7 +30,8 @@ function Stat({ value, label }) {
 }
 
 export default function BehindTheScenes({ session }) {
-  const { status, visit, events, arrivedAt, retry } = session;
+  const { status, visit, events, eventsSaved, lastRoundTripMs, arrivedAt, retry } =
+    session;
   const seconds = useElapsedSeconds(arrivedAt);
   const place =
     visit?.location?.region || visit?.location?.country || "Unknown";
@@ -52,12 +53,13 @@ export default function BehindTheScenes({ session }) {
           <>
             <Stat value={formatDuration(seconds)} label="time on page" />
             <Stat value={place} label="from CloudFront headers" />
+            <Stat value={eventsSaved} label="events saved in DynamoDB" />
+            <Stat value={`${lastRoundTripMs} ms`} label="last round trip" />
           </>
         ) : (
-          <>
-            <div className="h-[104px] rounded-xl bg-white/7"></div>
-            <div className="h-[104px] rounded-xl bg-white/7"></div>
-          </>
+          [1, 2, 3, 4].map((n) => (
+            <div key={n} className="h-[104px] rounded-xl bg-white/7"></div>
+          ))
         )}
       </div>
 
