@@ -1,23 +1,22 @@
-const sampleEvents = [
-  {
-    time: "1:38",
-    text: "You clicked a skill. The click went through API Gateway to Lambda in 21 ms.",
-  },
-  {
-    time: "0:51",
-    text: "You scrolled to About. Section views are stored so I can see what people actually read.",
-  },
-  {
-    time: "0:15",
-    text: "First heartbeat. Your session row in DynamoDB was updated.",
-  },
-  {
-    time: "0:00",
-    text: "You arrived. A Lambda function woke up from a cold start in 412 ms and logged your visit.",
-  },
-];
+import { useEffect, useState } from "react";
+import { formatDuration, secondsSince } from "../lib/time";
 
 const requestPath = ["CloudFront", "API Gateway", "Lambda", "DynamoDB"];
+
+const subtitles = {
+  connecting: "Connecting to the API",
+  live: "Updating as you scroll and click",
+  offline: "Offline right now",
+};
+
+function useElapsedSeconds(since) {
+  const [seconds, setSeconds] = useState(() => secondsSince(since));
+  useEffect(() => {
+    const id = setInterval(() => setSeconds(secondsSince(since)), 1000);
+    return () => clearInterval(id);
+  }, [since]);
+  return seconds;
+}
 
 function Stat({ value, label }) {
   return (
@@ -30,7 +29,12 @@ function Stat({ value, label }) {
   );
 }
 
-export default function BehindTheScenes() {
+export default function BehindTheScenes({ session }) {
+  const { status, visit, events, arrivedAt, retry } = session;
+  const seconds = useElapsedSeconds(arrivedAt);
+  const place =
+    visit?.location?.region || visit?.location?.country || "Unknown";
+
   return (
     <aside
       aria-label="What my backend sees"
@@ -40,31 +44,69 @@ export default function BehindTheScenes() {
         <h2 className="font-display text-[28px] font-bold">
           What my backend sees
         </h2>
-        <p className="text-navy-muted">Updating as you scroll and click</p>
+        <p className="text-navy-muted">{subtitles[status]}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <Stat value="1:42" label="time on page" />
-        <Stat value="Georgia" label="from CloudFront headers" />
+        {visit ? (
+          <>
+            <Stat value={formatDuration(seconds)} label="time on page" />
+            <Stat value={place} label="from CloudFront headers" />
+          </>
+        ) : (
+          <>
+            <div className="h-[104px] rounded-xl bg-white/7"></div>
+            <div className="h-[104px] rounded-xl bg-white/7"></div>
+          </>
+        )}
       </div>
 
-      <ol>
-        {sampleEvents.map((event, index) => (
-          <li
-            key={event.time}
-            className="flex gap-4 border-b border-white/12 py-4 leading-normal"
+      {status === "connecting" && (
+        <p className="leading-normal">
+          Your browser just sent its first request. If this takes a moment, the
+          Lambda function is waking up from a cold start.
+        </p>
+      )}
+
+      {status === "offline" && (
+        <div className="flex flex-col gap-3.5 rounded-xl border border-white/20 p-5">
+          <p className="leading-normal">
+            The API did not respond, so this panel is paused. The rest of the
+            site still works, because it is served straight from CloudFront.
+          </p>
+          <p className="text-[15px] leading-normal text-navy-muted">
+            That separation is on purpose: static content and the backend fail
+            independently.
+          </p>
+          <button
+            type="button"
+            onClick={retry}
+            className="min-h-11 cursor-pointer self-start rounded-full bg-navy-text px-4.5 text-[15px] font-semibold text-navy"
           >
-            <span
-              className={`w-14 shrink-0 text-[15px] ${
-                index === 0 ? "text-live" : "text-navy-muted"
-              }`}
+            Try again
+          </button>
+        </div>
+      )}
+
+      {events.length > 0 && (
+        <ol>
+          {events.map((event, index) => (
+            <li
+              key={event.id}
+              className="flex gap-4 border-b border-white/12 py-4 leading-normal"
             >
-              {event.time}
-            </span>
-            <p>{event.text}</p>
-          </li>
-        ))}
-      </ol>
+              <span
+                className={`w-14 shrink-0 text-[15px] ${
+                  index === 0 ? "text-live" : "text-navy-muted"
+                }`}
+              >
+                {formatDuration(event.at)}
+              </span>
+              <p>{event.text}</p>
+            </li>
+          ))}
+        </ol>
+      )}
 
       <div className="mt-auto flex flex-col gap-3">
         <p className="text-navy-muted">The path every request takes</p>

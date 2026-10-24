@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { primaryButton, secondaryButton } from "./buttons";
 
-export default function MobileNotice() {
+export default function MobileNotice({ session }) {
   const [copied, setCopied] = useState(false);
 
   async function copyLink() {
@@ -39,23 +39,24 @@ export default function MobileNotice() {
           <button type="button" className={primaryButton} onClick={copyLink}>
             {copied ? "Link copied" : "Copy link for later"}
           </button>
-          {/* Wired to a Lambda function in the backend phase */}
           <button type="button" className={secondaryButton}>
             Download my resume
           </button>
         </div>
       </div>
 
-      <div className="flex flex-col gap-2 bg-navy px-6 pb-7 pt-5.5 text-navy-text">
-        <div className="flex items-center gap-2.5 text-[15px] font-semibold">
-          <span className="size-2.5 rounded-full bg-live"></span>
-          My backend still saw you
+      {session.status === "live" && (
+        <div className="flex flex-col gap-2 bg-navy px-6 pb-7 pt-5.5 text-navy-text">
+          <div className="flex items-center gap-2.5 text-[15px] font-semibold">
+            <span className="size-2.5 rounded-full bg-live"></span>
+            My backend still saw you
+          </div>
+          <p className="text-[15px] leading-normal text-navy-muted">
+            Your visit was logged by a Lambda function and saved as one row in
+            DynamoDB, marked as a phone visit.
+          </p>
         </div>
-        <p className="text-[15px] leading-normal text-navy-muted">
-          Your visit was logged by a Lambda function and saved as one row in
-          DynamoDB, marked as a phone visit.
-        </p>
-      </div>
+      )}
     </div>
   );
 }

@@ -19,3 +19,10 @@ cdk.out/
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Claude
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+HANDOFF.md
+HANDOFF*.md

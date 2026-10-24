@@ -4,12 +4,14 @@ import Skills from "./components/Skills";
 import BehindTheScenes from "./components/BehindTheScenes";
 import MobileNotice from "./components/MobileNotice";
 import useIsDesktop from "./hooks/useIsDesktop";
+import useBackendSession from "./hooks/useBackendSession";
 
 export default function App() {
   const isDesktop = useIsDesktop();
+  const session = useBackendSession();
 
   if (!isDesktop) {
-    return <MobileNotice />;
+    return <MobileNotice session={session} />;
   }
 
   return (
@@ -20,7 +22,7 @@ export default function App() {
         <About />
         <Skills />
       </main>
-      <BehindTheScenes />
+      <BehindTheScenes session={session} />
     </div>
   );
 }
