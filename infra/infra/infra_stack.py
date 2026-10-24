@@ -42,6 +42,9 @@ class InfraStack(Stack):
         events_fn = self._python_function("Events", "events", table)
         table.grant_read_write_data(events_fn)  # reads the session before writing an event
 
+        stats_fn = self._python_function("Stats", "stats", table)
+        table.grant_read_data(stats_fn)
+
         # Private: the only way in is a short-lived link signed by the resume function.
         # The PDF itself is uploaded by hand, so it never has to live in the public repo.
         resume_bucket = s3.Bucket(
@@ -86,6 +89,8 @@ class InfraStack(Stack):
         visits.add_method("POST", apigw.LambdaIntegration(visits_fn))
         events = api_root.add_resource("events")
         events.add_method("POST", apigw.LambdaIntegration(events_fn))
+        stats = api_root.add_resource("stats")
+        stats.add_method("GET", apigw.LambdaIntegration(stats_fn))
         resume = api_root.add_resource("resume")
         resume.add_method("POST", apigw.LambdaIntegration(resume_fn))
 

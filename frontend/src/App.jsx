@@ -7,12 +7,14 @@ import MobileNotice from "./components/MobileNotice";
 import useIsDesktop from "./hooks/useIsDesktop";
 import useBackendSession from "./hooks/useBackendSession";
 import useSectionViews from "./hooks/useSectionViews";
+import useClickTracking from "./hooks/useClickTracking";
 
 export default function App() {
   const isDesktop = useIsDesktop();
   const session = useBackendSession();
   const mainRef = useRef(null);
   useSectionViews(mainRef, session.viewSection, isDesktop && session.status === "live");
+  useClickTracking(session.recordClick, session.status === "live");
 
   if (!isDesktop) {
     return <MobileNotice session={session} />;

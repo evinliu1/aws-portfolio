@@ -18,7 +18,14 @@ def test_returns_201_json(visits_handler):
 
     assert response["statusCode"] == 201
     assert response["headers"]["Content-Type"] == "application/json"
-    assert set(body) == {"sessionId", "coldStart", "location", "isMobile", "handlerMs"}
+    assert set(body) == {
+        "sessionId",
+        "visitorNumber",
+        "coldStart",
+        "location",
+        "isMobile",
+        "handlerMs",
+    }
 
 
 def test_writes_session_item_to_table(visits_handler, table):
@@ -78,3 +85,17 @@ def test_each_visit_gets_a_new_session_id(visits_handler):
     _, second = call(visits_handler)
 
     assert first["sessionId"] != second["sessionId"]
+
+
+def test_visitors_are_numbered_in_order(visits_handler):
+    numbers = [call(visits_handler)[1]["visitorNumber"] for _ in range(3)]
+
+    assert numbers == [1, 2, 3]
+
+
+def test_visitor_counter_never_expires(visits_handler, table):
+    call(visits_handler)
+
+    counter = table.get_item(Key={"pk": "STATS", "sk": "VISITORS"})["Item"]
+    assert counter["total"] == 1
+    assert "expires_at" not in counter

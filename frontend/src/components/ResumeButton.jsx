@@ -21,6 +21,7 @@ export default function ResumeButton({ onDownload, className, children }) {
   return (
     <button
       type="button"
+      data-track="download-resume"
       className={className}
       onClick={handleClick}
       disabled={state === "loading"}

@@ -61,6 +61,11 @@ def events_handler(table):
 
 
 @pytest.fixture
+def stats_handler(table):
+    return _fresh_import("stats.handler")
+
+
+@pytest.fixture
 def resume_topic_arn(table):
     """A moto SNS topic standing in for the download-notification topic."""
     return boto3.client("sns").create_topic(Name="test-resume-downloads")["TopicArn"]

@@ -88,10 +88,13 @@ def test_unknown_session_returns_404(events_handler, table):
         {"type": "heartbeat"},
         {"sessionId": "not-a-uuid", "type": "heartbeat"},
         {"sessionId": 12345, "type": "heartbeat"},
-        {"sessionId": "SESSION_ID", "type": "click"},
+        {"sessionId": "SESSION_ID", "type": "scroll"},
         {"sessionId": "SESSION_ID", "type": "section_view"},
         {"sessionId": "SESSION_ID", "type": "section_view", "section": "About Me!"},
         {"sessionId": "SESSION_ID", "type": "section_view", "section": "x" * 41},
+        {"sessionId": "SESSION_ID", "type": "click"},
+        {"sessionId": "SESSION_ID", "type": "click", "target": "skill-cobol"},
+        {"sessionId": "SESSION_ID", "type": "click", "target": ["get-in-touch"]},
     ],
     ids=[
         "no-body",
@@ -104,6 +107,9 @@ def test_unknown_session_returns_404(events_handler, table):
         "missing-section",
         "bad-section",
         "section-too-long",
+        "click-missing-target",
+        "click-unknown-target",
+        "click-target-not-a-string",
     ],
 )
 def test_bad_requests_return_400_and_store_nothing(events_handler, table, session_id, payload):
@@ -114,7 +120,81 @@ def test_bad_requests_return_400_and_store_nothing(events_handler, table, sessio
 
     assert response["statusCode"] == 400
     assert "error" in body
-    assert stored_events(table, session_id) == []
+    assert table.scan()["Count"] == 1  # only the session's META item
+
+
+def make_session(table):
+    session_id = str(uuid.uuid4())
+    table.put_item(
+        Item={"pk": f"SESSION#{session_id}", "sk": "META", "expires_at": SESSION_EXPIRES_AT}
+    )
+    return session_id
+
+
+def click(events_handler, session_id, target="skill-python"):
+    return call(events_handler, {"sessionId": session_id, "type": "click", "target": target})
+
+
+def click_counter(table, target):
+    return table.get_item(Key={"pk": "STATS", "sk": f"CLICK#{target}"}).get("Item")
+
+
+def test_first_click_is_counted(events_handler, table, session_id):
+    response, body = click(events_handler, session_id)
+
+    assert response["statusCode"] == 201
+    assert body["type"] == "click"
+    assert body["firstClick"] is True
+    assert body["clickCount"] == 1
+    assert click_counter(table, "skill-python")["total"] == 1
+
+
+def test_click_is_saved_under_its_session(events_handler, table, session_id):
+    click(events_handler, session_id)
+
+    item = table.get_item(Key={"pk": f"SESSION#{session_id}", "sk": "CLICK#skill-python"})["Item"]
+    assert item["target"] == "skill-python"
+    assert item["expires_at"] == SESSION_EXPIRES_AT
+
+
+def test_each_visitor_counts_once_per_target(events_handler, table, session_id):
+    click(events_handler, session_id)
+    response, body = click(events_handler, session_id)
+
+    assert response["statusCode"] == 200
+    assert body["firstClick"] is False
+    assert body["clickCount"] == 1
+    assert click_counter(table, "skill-python")["total"] == 1
+
+
+def test_different_visitors_add_up(events_handler, table, session_id):
+    click(events_handler, session_id)
+    _, body = click(events_handler, make_session(table))
+
+    assert body["clickCount"] == 2
+
+
+def test_targets_are_counted_separately(events_handler, table, session_id):
+    click(events_handler, session_id, "skill-python")
+    _, body = click(events_handler, session_id, "get-in-touch")
+
+    assert body["firstClick"] is True
+    assert body["clickCount"] == 1
+    assert click_counter(table, "skill-python")["total"] == 1
+    assert click_counter(table, "get-in-touch")["total"] == 1
+
+
+def test_click_counters_never_expire(events_handler, table, session_id):
+    click(events_handler, session_id)
+
+    assert "expires_at" not in click_counter(table, "skill-python")
+
+
+def test_click_from_unknown_session_is_not_counted(events_handler, table):
+    response, _ = click(events_handler, str(uuid.uuid4()))
+
+    assert response["statusCode"] == 404
+    assert click_counter(table, "skill-python") is None
 
 
 def test_cold_start_only_on_first_call(events_handler, session_id):

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { CLICK_LABELS } from "../lib/clickTargets";
 import { formatDuration, secondsSince } from "../lib/time";
 
 const requestPath = ["CloudFront", "API Gateway", "Lambda", "DynamoDB"];
+const CHART_ROWS = 5;
 
 const subtitles = {
   connecting: "Connecting to the API",
@@ -29,9 +31,60 @@ function Stat({ value, label }) {
   );
 }
 
+function ClickChart({ counts, lastClicked }) {
+  const ranked = Object.entries(counts)
+    .filter(([target]) => target in CLICK_LABELS)
+    .sort(([a, x], [b, y]) => y - x || a.localeCompare(b));
+  let rows = ranked.slice(0, CHART_ROWS);
+  // Always show the visitor's own latest click, even if it isn't in the top rows yet.
+  if (lastClicked && !rows.some(([target]) => target === lastClicked)) {
+    rows = [...rows.slice(0, CHART_ROWS - 1), ranked.find(([t]) => t === lastClicked)];
+  }
+  if (rows.length === 0) return null;
+  const most = Math.max(...rows.map(([, count]) => count));
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <p>What visitors click</p>
+        <p className="text-[15px] text-navy-muted">
+          Visitors who clicked each one, all time
+        </p>
+      </div>
+      <ol className="flex flex-col gap-3">
+        {rows.map(([target, count]) => (
+          <li key={target} className="flex flex-col gap-1.5">
+            <div className="flex justify-between gap-4 text-[15px]">
+              <span>{CLICK_LABELS[target]}</span>
+              <span className="text-navy-muted">{count.toLocaleString()}</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-white/7" aria-hidden="true">
+              <div
+                className={`h-full rounded-full ${
+                  target === lastClicked ? "bg-live" : "bg-navy-text"
+                }`}
+                style={{ width: `${(count / most) * 100}%` }}
+              ></div>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 export default function BehindTheScenes({ session }) {
-  const { status, visit, events, eventsSaved, lastRoundTripMs, arrivedAt, retry } =
-    session;
+  const {
+    status,
+    visit,
+    events,
+    eventsSaved,
+    lastRoundTripMs,
+    clickCounts,
+    lastClicked,
+    arrivedAt,
+    retry,
+  } = session;
   const seconds = useElapsedSeconds(arrivedAt);
   const place =
     visit?.location?.region || visit?.location?.country || "Unknown";
@@ -62,6 +115,10 @@ export default function BehindTheScenes({ session }) {
           ))
         )}
       </div>
+
+      {status === "live" && (
+        <ClickChart counts={clickCounts} lastClicked={lastClicked} />
+      )}
 
       {status === "connecting" && (
         <p className="leading-normal">

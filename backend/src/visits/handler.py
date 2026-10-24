@@ -13,6 +13,22 @@ SESSION_TTL_SECONDS = 30 * 24 * 60 * 60
 _is_cold_start = True
 
 
+def _count_visitor():
+    """Add one to the all-time visitor count and return the new total.
+
+    ADD is atomic, so two visitors arriving at once can't overwrite each other's increment.
+    The counter item has no expires_at, so it outlives the 30-day visit records.
+    """
+    result = TABLE.update_item(
+        Key={"pk": "STATS", "sk": "VISITORS"},
+        UpdateExpression="ADD #total :one",
+        ExpressionAttributeNames={"#total": "total"},
+        ExpressionAttributeValues={":one": 1},
+        ReturnValues="UPDATED_NEW",
+    )
+    return int(result["Attributes"]["total"])
+
+
 def lambda_handler(event, context):
     global _is_cold_start
     started = time.perf_counter()
@@ -35,9 +51,11 @@ def lambda_handler(event, context):
         "expires_at": int(time.time()) + SESSION_TTL_SECONDS,
     }
     TABLE.put_item(Item={k: v for k, v in item.items() if v is not None})
+    visitor_number = _count_visitor()
 
     body = {
         "sessionId": session_id,
+        "visitorNumber": visitor_number,
         "coldStart": cold_start,
         "location": {"country": country, "region": region},
         "isMobile": is_mobile,

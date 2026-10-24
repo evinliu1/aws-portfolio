@@ -15,7 +15,11 @@ export default function Hero({ onDownloadResume }) {
         <ResumeButton onDownload={onDownloadResume} className={primaryButton}>
           Download resume
         </ResumeButton>
-        <a href="mailto:you@example.com" className={secondaryButton}>
+        <a
+          href="mailto:you@example.com"
+          data-track="get-in-touch"
+          className={secondaryButton}
+        >
           Get in touch
         </a>
       </div>
