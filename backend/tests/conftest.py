@@ -39,12 +39,21 @@ def table(aws_env):
         yield table
 
 
-@pytest.fixture
-def handler(table):
-    """Import the handler fresh for each test.
+def _fresh_import(module_name):
+    """Import a handler fresh for each test.
 
-    The module creates its boto3 Table and cold-start flag at import time,
+    Each module creates its boto3 Table and cold-start flag at import time,
     so reloading gives every test a clean cold start pointed at the mock table.
     """
-    sys.modules.pop("handler", None)
-    return importlib.import_module("handler")
+    sys.modules.pop(module_name, None)
+    return importlib.import_module(module_name)
+
+
+@pytest.fixture
+def visits_handler(table):
+    return _fresh_import("visits.handler")
+
+
+@pytest.fixture
+def events_handler(table):
+    return _fresh_import("events.handler")

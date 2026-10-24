@@ -35,24 +35,11 @@ class InfraStack(Stack):
             removal_policy=RemovalPolicy.DESTROY,
         )
 
-        visits_fn = lambda_.Function(
-            self,
-            "VisitsFunction",
-            runtime=lambda_.Runtime.PYTHON_3_13,
-            architecture=lambda_.Architecture.ARM_64,  # Graviton: cheaper per ms
-            handler="handler.lambda_handler",
-            code=lambda_.Code.from_asset(str(BACKEND_SRC / "visits")),
-            memory_size=256,
-            timeout=Duration.seconds(5),
-            environment={"TABLE_NAME": table.table_name},
-            log_group=logs.LogGroup(
-                self,
-                "VisitsLogs",
-                retention=logs.RetentionDays.ONE_WEEK,
-                removal_policy=RemovalPolicy.DESTROY,
-            ),
-        )
+        visits_fn = self._python_function("Visits", "visits", table)
         table.grant_write_data(visits_fn)
+
+        events_fn = self._python_function("Events", "events", table)
+        table.grant_read_write_data(events_fn)  # reads the session before writing an event
 
         api = apigw.RestApi(
             self,
@@ -67,6 +54,8 @@ class InfraStack(Stack):
         api_root = api.root.add_resource("api")
         visits = api_root.add_resource("visits")
         visits.add_method("POST", apigw.LambdaIntegration(visits_fn))
+        events = api_root.add_resource("events")
+        events.add_method("POST", apigw.LambdaIntegration(events_fn))
 
         api_origin_policy = cloudfront.OriginRequestPolicy(
             self,
@@ -122,3 +111,23 @@ class InfraStack(Stack):
 
         CfnOutput(self, "SiteUrl", value=f"https://{distribution.distribution_domain_name}")
         CfnOutput(self, "TableName", value=table.table_name)
+
+    def _python_function(self, name: str, source_dir: str, table: dynamodb.Table) -> lambda_.Function:
+        """A Lambda running one handler from backend/src, with the settings every API function shares."""
+        return lambda_.Function(
+            self,
+            f"{name}Function",
+            runtime=lambda_.Runtime.PYTHON_3_13,
+            architecture=lambda_.Architecture.ARM_64,  # Graviton: cheaper per ms
+            handler="handler.lambda_handler",
+            code=lambda_.Code.from_asset(str(BACKEND_SRC / source_dir), exclude=["__pycache__"]),
+            memory_size=256,
+            timeout=Duration.seconds(5),
+            environment={"TABLE_NAME": table.table_name},
+            log_group=logs.LogGroup(
+                self,
+                f"{name}Logs",
+                retention=logs.RetentionDays.ONE_WEEK,
+                removal_policy=RemovalPolicy.DESTROY,
+            ),
+        )
