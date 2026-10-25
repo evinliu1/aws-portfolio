@@ -14,8 +14,20 @@ class GitHubOidcStack(Stack):
     """
 
     def __init__(
-        self, scope: Construct, construct_id: str, *, repo: str, environment: str, **kwargs
+        self,
+        scope: Construct,
+        construct_id: str,
+        *,
+        repo: str,
+        repo_subject: str,
+        environment: str,
+        **kwargs,
     ) -> None:
+        """repo_subject is how GitHub names the repo in its tokens' "sub" claim. This repo uses
+        immutable subjects ("repo:owner@ownerId/name@repoId"), so a deleted-and-recreated repo
+        with the same name can't take over the role. Check it with:
+        gh api repos/<owner>/<name>/actions/oidc/customization/sub
+        """
         super().__init__(scope, construct_id, **kwargs)
 
         provider = iam.OidcProviderNative(
@@ -37,7 +49,7 @@ class GitHubOidcStack(Stack):
                         f"{GITHUB_OIDC_HOST}:aud": "sts.amazonaws.com",
                         # Only jobs in this repo's approval-gated environment, never a fork,
                         # a pull request, or any other repository.
-                        f"{GITHUB_OIDC_HOST}:sub": f"repo:{repo}:environment:{environment}",
+                        f"{GITHUB_OIDC_HOST}:sub": f"{repo_subject}:environment:{environment}",
                     }
                 },
             ),

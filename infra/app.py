@@ -17,6 +17,7 @@ GitHubOidcStack(
     app,
     "GitHubOidcStack",
     repo="evinliu1/aws-portfolio",
+    repo_subject="repo:evinliu1@84590384/aws-portfolio@1400898589",
     environment="production",
     env=env,
 )
