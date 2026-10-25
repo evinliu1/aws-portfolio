@@ -77,3 +77,8 @@ def resume_handler(table, resume_topic_arn, monkeypatch):
     monkeypatch.setenv("RESUME_BUCKET", RESUME_BUCKET)
     monkeypatch.setenv("TOPIC_ARN", resume_topic_arn)
     return _fresh_import("resume.handler")
+
+
+@pytest.fixture
+def privacy_handler(table):
+    return _fresh_import("privacy.handler")

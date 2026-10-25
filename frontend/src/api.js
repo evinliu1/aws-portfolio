@@ -34,3 +34,12 @@ export function requestResume(sessionId) {
 export function getStats() {
   return request("/api/stats");
 }
+
+// Every row the backend stored about this visit, exactly as DynamoDB holds them.
+export function getStoredData(sessionId) {
+  return request(`/api/sessions/${sessionId}`);
+}
+
+export function deleteStoredData(sessionId) {
+  return request(`/api/sessions/${sessionId}`, { method: "DELETE" });
+}

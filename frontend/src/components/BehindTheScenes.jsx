@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { CLICK_LABELS } from "../lib/clickTargets";
 import { formatDuration, secondsSince } from "../lib/time";
+import StoredData from "./StoredData";
 
 const requestPath = ["CloudFront", "API Gateway", "Lambda", "DynamoDB"];
 const CHART_ROWS = 5;
@@ -9,6 +10,7 @@ const subtitles = {
   connecting: "Connecting to the API",
   live: "Updating as you scroll and click",
   offline: "Offline right now",
+  deleted: "Stopped, because you deleted your data",
 };
 
 function useElapsedSeconds(since) {
@@ -84,6 +86,8 @@ export default function BehindTheScenes({ session }) {
     lastClicked,
     arrivedAt,
     retry,
+    loadStoredData,
+    deleteData,
   } = session;
   const seconds = useElapsedSeconds(arrivedAt);
   const place =
@@ -101,23 +105,40 @@ export default function BehindTheScenes({ session }) {
         <p className="text-navy-muted">{subtitles[status]}</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        {visit ? (
-          <>
-            <Stat value={formatDuration(seconds)} label="time on page" />
-            <Stat value={place} label="from CloudFront headers" />
-            <Stat value={eventsSaved} label="events saved in DynamoDB" />
-            <Stat value={`${lastRoundTripMs} ms`} label="last round trip" />
-          </>
-        ) : (
-          [1, 2, 3, 4].map((n) => (
-            <div key={n} className="h-[104px] rounded-xl bg-white/7"></div>
-          ))
-        )}
-      </div>
+      {status !== "deleted" && (
+        <div className="grid grid-cols-2 gap-4">
+          {visit ? (
+            <>
+              <Stat value={formatDuration(seconds)} label="time on page" />
+              <Stat value={place} label="from CloudFront headers" />
+              <Stat value={eventsSaved} label="events saved in DynamoDB" />
+              <Stat value={`${lastRoundTripMs} ms`} label="last round trip" />
+            </>
+          ) : (
+            [1, 2, 3, 4].map((n) => (
+              <div key={n} className="h-[104px] rounded-xl bg-white/7"></div>
+            ))
+          )}
+        </div>
+      )}
 
       {status === "live" && (
-        <ClickChart counts={clickCounts} lastClicked={lastClicked} />
+        <>
+          <ClickChart counts={clickCounts} lastClicked={lastClicked} />
+          <StoredData load={loadStoredData} remove={deleteData} />
+        </>
+      )}
+
+      {status === "deleted" && (
+        <div className="flex flex-col gap-3.5 rounded-xl border border-white/20 p-5">
+          <p className="leading-normal">
+            My backend no longer has any record of this visit, and this panel
+            has stopped watching.
+          </p>
+          <p className="text-[15px] leading-normal text-navy-muted">
+            Reloading the page starts a new visit.
+          </p>
+        </div>
       )}
 
       {status === "connecting" && (

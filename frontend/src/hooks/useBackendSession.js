@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getStats, requestResume, sendEvent, startVisit } from "../api";
+import {
+  deleteStoredData,
+  getStats,
+  getStoredData,
+  requestResume,
+  sendEvent,
+  startVisit,
+} from "../api";
 import { CLICK_LABELS } from "../lib/clickTargets";
 import { secondsSince } from "../lib/time";
 
@@ -56,6 +63,11 @@ function describeResumeDownload(result) {
     return `You downloaded my resume, so ${link}. SNS couldn't send my notification this time, so my phone stayed quiet. ${describeTiming(result)}`;
   }
   return `You downloaded my resume, so ${link} and recorded the download on your visit. SNS emailed me about it, so my phone just buzzed. ${describeTiming(result)}`;
+}
+
+function describeDeletion(result) {
+  const rows = result.deleted === 1 ? "the 1 row" : `all ${result.deleted} rows`;
+  return `You deleted your data. A Lambda function removed ${rows} about your visit from DynamoDB, and your browser stopped sending events. ${describeTiming(result)}`;
 }
 
 export default function useBackendSession() {
@@ -147,6 +159,22 @@ export default function useBackendSession() {
     if (sessionId) addEvent(describeResumeDownload(result));
   }, [sessionId, addEvent]);
 
+  // Both throw if the API can't be reached, so the caller can show the failure.
+  const loadStoredData = useCallback(async () => {
+    const result = await getStoredData(sessionId);
+    setLastRoundTripMs(result.roundTripMs);
+    return result.items;
+  }, [sessionId]);
+
+  const deleteData = useCallback(async () => {
+    const result = await deleteStoredData(sessionId);
+    // Without a visit, heartbeats stop and nothing else is recorded.
+    setVisit(null);
+    setStatus("deleted");
+    setLastRoundTripMs(result.roundTripMs);
+    addEvent(describeDeletion(result));
+  }, [sessionId, addEvent]);
+
   useEffect(() => {
     if (requested.current) return;
     requested.current = true;
@@ -198,5 +226,7 @@ export default function useBackendSession() {
     viewSection,
     recordClick,
     downloadResume,
+    loadStoredData,
+    deleteData,
   };
 }

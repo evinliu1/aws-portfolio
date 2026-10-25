@@ -45,6 +45,9 @@ class InfraStack(Stack):
         stats_fn = self._python_function("Stats", "stats", table)
         table.grant_read_data(stats_fn)
 
+        privacy_fn = self._python_function("Privacy", "privacy", table)
+        table.grant_read_write_data(privacy_fn)  # shows a visitor their rows, or deletes them
+
         # Private: the only way in is a short-lived link signed by the resume function.
         # The PDF itself is uploaded by hand, so it never has to live in the public repo.
         resume_bucket = s3.Bucket(
@@ -91,6 +94,10 @@ class InfraStack(Stack):
         events.add_method("POST", apigw.LambdaIntegration(events_fn))
         stats = api_root.add_resource("stats")
         stats.add_method("GET", apigw.LambdaIntegration(stats_fn))
+        session = api_root.add_resource("sessions").add_resource("{sessionId}")
+        privacy_integration = apigw.LambdaIntegration(privacy_fn)
+        session.add_method("GET", privacy_integration)
+        session.add_method("DELETE", privacy_integration)
         resume = api_root.add_resource("resume")
         resume.add_method("POST", apigw.LambdaIntegration(resume_fn))
 

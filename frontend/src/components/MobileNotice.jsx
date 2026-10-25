@@ -2,8 +2,24 @@ import { useState } from "react";
 import { primaryButton, secondaryButton } from "./buttons";
 import ResumeButton from "./ResumeButton";
 
+const deleteLabels = {
+  idle: "Delete it now",
+  deleting: "Deleting…",
+  error: "The delete didn't go through. Try again",
+};
+
 export default function MobileNotice({ session }) {
   const [copied, setCopied] = useState(false);
+  const [deleteState, setDeleteState] = useState("idle");
+
+  async function deleteVisit() {
+    setDeleteState("deleting");
+    try {
+      await session.deleteData(); // On success the status changes and this button goes away.
+    } catch {
+      setDeleteState("error");
+    }
+  }
 
   async function copyLink() {
     try {
@@ -57,8 +73,22 @@ export default function MobileNotice({ session }) {
           </div>
           <p className="text-[15px] leading-normal text-navy-muted">
             Your visit was logged by a Lambda function and saved as one row in
-            DynamoDB, marked as a phone visit.
+            DynamoDB, marked as a phone visit. It deletes itself after 30 days.
           </p>
+          <button
+            type="button"
+            onClick={deleteVisit}
+            disabled={deleteState === "deleting"}
+            className="min-h-11 cursor-pointer self-start text-[15px] font-semibold underline underline-offset-4 disabled:cursor-default disabled:opacity-70"
+          >
+            {deleteLabels[deleteState]}
+          </button>
+        </div>
+      )}
+
+      {session.status === "deleted" && (
+        <div className="bg-navy px-6 pb-7 pt-5.5 text-[15px] leading-normal text-navy-text">
+          Deleted. My backend no longer has any record of your visit.
         </div>
       )}
     </div>
