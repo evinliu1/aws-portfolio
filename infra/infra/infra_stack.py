@@ -83,8 +83,9 @@ class InfraStack(Stack):
             endpoint_types=[apigw.EndpointType.REGIONAL],  # CloudFront is our edge
             deploy_options=apigw.StageOptions(
                 stage_name="prod",
-                throttling_rate_limit=10,
-                throttling_burst_limit=20,
+                # Far above a portfolio's real traffic, but low enough to cap what a spammer can cost.
+                throttling_rate_limit=5,
+                throttling_burst_limit=10,
             ),
         )
         api_root = api.root.add_resource("api")
