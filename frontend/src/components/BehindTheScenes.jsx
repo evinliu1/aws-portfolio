@@ -22,9 +22,9 @@ function useElapsedSeconds(since) {
   return seconds;
 }
 
-function Stat({ value, label }) {
+function Stat({ value, label, className = "" }) {
   return (
-    <div className="rounded-xl bg-white/7 p-5">
+    <div className={`rounded-xl bg-white/7 p-5 ${className}`}>
       <div className="font-display text-[40px] font-medium leading-tight">
         {value}
       </div>
@@ -109,14 +109,24 @@ export default function BehindTheScenes({ session }) {
         <div className="grid grid-cols-2 gap-4">
           {visit ? (
             <>
+              {visit.visitorNumber && (
+                <Stat
+                  value={`Visitor #${visit.visitorNumber.toLocaleString()}`}
+                  label="counted by an atomic counter in DynamoDB"
+                  className="col-span-2"
+                />
+              )}
               <Stat value={formatDuration(seconds)} label="time on page" />
               <Stat value={place} label="from CloudFront headers" />
               <Stat value={eventsSaved} label="events saved in DynamoDB" />
               <Stat value={`${lastRoundTripMs} ms`} label="last round trip" />
             </>
           ) : (
-            [1, 2, 3, 4].map((n) => (
-              <div key={n} className="h-[104px] rounded-xl bg-white/7"></div>
+            [1, 2, 3, 4, 5].map((n) => (
+              <div
+                key={n}
+                className={`h-[104px] rounded-xl bg-white/7 ${n === 1 ? "col-span-2" : ""}`}
+              ></div>
             ))
           )}
         </div>

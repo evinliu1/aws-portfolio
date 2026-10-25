@@ -69,7 +69,9 @@ export default function MobileNotice({ session }) {
         <div className="flex flex-col gap-2 bg-navy px-6 pb-7 pt-5.5 text-navy-text">
           <div className="flex items-center gap-2.5 text-[15px] font-semibold">
             <span className="size-2.5 rounded-full bg-live"></span>
-            My backend still saw you
+            {session.visit?.visitorNumber
+              ? `You're visitor #${session.visit.visitorNumber.toLocaleString()}`
+              : "My backend still saw you"}
           </div>
           <p className="text-[15px] leading-normal text-navy-muted">
             Your visit was logged by a Lambda function and saved as one row in
